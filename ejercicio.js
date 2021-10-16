@@ -9,7 +9,14 @@ class CurveDrawer
 		this.prog   = InitShaderProgram( curvesVS, curvesFS );
 
 		// [Completar] Incialización y obtención de las ubicaciones de los atributos y variables uniformes
-				
+		
+		this.m = gl.getUniformLocation(this.prog,'mvp');
+		this.p0 = gl.getUniformLocation(this.prog,'p0');
+		this.p1 = gl.getUniformLocation(this.prog,'p1');
+		this.p2 = gl.getUniformLocation(this.prog,'p2');
+		this.p3 = gl.getUniformLocation(this.prog,'p3');
+		this.t = gl.getAttribLocation(this.prog, 't');
+		
 		// Muestreo del parámetro t
 		this.steps = 100;
 		var tv = [];
@@ -18,6 +25,11 @@ class CurveDrawer
 		}
 		
 		// [Completar] Creacion del vertex buffer y seteo de contenido
+		this.buffer = gl.createBuffer();
+
+		gl.bindBuffer(gl.ARRAY_BUFFER, this.buffer);
+		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(tv), gl.STATIC_DRAW);
+		
 	}
 
 	// Actualización del viewport (se llama al inicializar la web o al cambiar el tamaño de la pantalla)
@@ -25,6 +37,13 @@ class CurveDrawer
 	{
 		// [Completar] Matriz de transformación.
 		// [Completar] Binding del programa y seteo de la variable uniforme para la matriz. 
+
+		var trans = [ 2/width,0,0,0,  0,-2/height,0,0, 0,0,1,0, -1,1,0,1 ];
+
+		gl.useProgram(this.prog);
+		
+		gl.uniformMatrix4fv(this.m, false, trans);
+
 	}
 
 	updatePoints( pt )
@@ -34,12 +53,35 @@ class CurveDrawer
 		// [Completar] Pueden acceder a las coordenadas de los puntos de control consultando el arreglo pt[]:
 		// var x = pt[i].getAttribute("cx");
 		// var y = pt[i].getAttribute("cy");
+		var p = [];
+		for ( var i=0; i<4; ++i ) 
+		{
+			var x = pt[i].getAttribute("cx");
+			var y = pt[i].getAttribute("cy");
+			
+			p.push(x);
+			p.push(y);
+		}
+
+		gl.useProgram(this.prog);
+		
+		gl.uniform2f(this.p0, p[0],p[1]);
+		gl.uniform2f(this.p1, p[2],p[3]);
+		gl.uniform2f(this.p2, p[4],p[5]);
+		gl.uniform2f(this.p3, p[6],p[7]);
 	}
 
 	draw()
 	{
 		// [Completar] Dibujamos la curva como una LINE_STRIP
 		// [Completar] No se olviden de hacer el binding del programa y de habilitar los atributos de los vértices
+		gl.useProgram(this.prog);
+		
+		gl.bindBuffer(gl.ARRAY_BUFFER, this.buffer);
+		gl.vertexAttribPointer(this.t,1,gl.FLOAT, false, 0, 0);
+	
+		gl.enableVertexAttribArray(this.t);
+		gl.drawArrays(gl.LINE_STRIP,0,this.steps);
 	}
 }
 
@@ -57,7 +99,8 @@ var curvesVS = `
 	uniform vec2 p3;
 	void main()
 	{ 
-		gl_Position = vec4(0,0,0,1);
+		vec2 bezierPos = pow(1.0-t,3.0)*p0 + 3.0*pow(1.0-t,2.0)*t*p1 + 3.0*(1.0-t)*pow(t,2.0)*p2 + pow(t,3.0)*p3;
+		gl_Position = mvp * vec4(bezierPos,0,1);
 	}
 `;
 
